@@ -16,6 +16,7 @@ public sealed record SandboxSwitches
     [JsonPropertyName("slow_suite_minutes")] public double SlowSuiteMinutes { get; init; }
     [JsonPropertyName("hang_test")] public bool HangTest { get; init; }
     [JsonPropertyName("flaky_test")] public bool FlakyTest { get; init; }
+    [JsonPropertyName("inspect_environment")] public bool InspectEnvironment { get; init; }
 
     // Read by MSBuild (Directory.Build.props), not by tests.
     [JsonPropertyName("fail_restore")] public bool FailRestore { get; init; }
@@ -23,16 +24,23 @@ public sealed record SandboxSwitches
     // Stubs: read by the sandbox build of the reusable test workflow, not by tests.
     [JsonPropertyName("fail_upload")] public bool FailUpload { get; init; }
     [JsonPropertyName("hang_upload")] public bool HangUpload { get; init; }
+    [JsonPropertyName("hang_upload_forever")] public bool HangUploadForever { get; init; }
+
+    // Read by the sandbox-slow-check workflow, not by tests.
+    [JsonPropertyName("slow_check_minutes")] public double SlowCheckMinutes { get; init; }
 
     public static SandboxSwitches Current { get; } = Load();
+
+    /// <summary>Where <c>sandbox.json</c> was found: the repo root.</summary>
+    public static string FilePath => Find(AppContext.BaseDirectory)
+        ?? throw new FileNotFoundException($"{FileName} not found above {AppContext.BaseDirectory}");
 
     public bool ShouldFail(string testName) =>
         FailingTests.Contains("*") || FailingTests.Contains(testName, StringComparer.OrdinalIgnoreCase);
 
     private static SandboxSwitches Load()
     {
-        var path = Find(AppContext.BaseDirectory)
-            ?? throw new FileNotFoundException($"{FileName} not found above {AppContext.BaseDirectory}");
+        var path = FilePath;
 
         return JsonSerializer.Deserialize<SandboxSwitches>(
                    File.ReadAllText(path),
